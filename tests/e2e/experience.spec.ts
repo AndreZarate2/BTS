@@ -1,0 +1,32 @@
+// Real local HTTP handlers + mock image provider. No intercepted API or external photo traffic.
+import {test,expect,type Page} from '@playwright/test';
+import {readFileSync} from 'node:fs';
+const selfie=readFileSync(new URL('../fixtures/selfie.png',import.meta.url)),template=readFileSync(new URL('../fixtures/escenario.webp',import.meta.url));
+async function checkViewport(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+async function navigate(page:Page,label:string){const menu=page.getByRole('button',{name:'Abrir menú',exact:true});if(await menu.isVisible())await menu.click();await page.getByRole('button',{name:label,exact:true}).first().click();await expect(page.getByRole('heading',{name:label,exact:true})).toBeVisible();}
+test('rutas públicas y protección /admin sin sesión',async({page},info)=>{
+ await page.goto('/');await expect(page.getByRole('heading',{name:'Tu momento. Su universo.'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`test-results/landing-${info.project.name}.png`,fullPage:true});
+ await page.goto('/admin');await expect(page).toHaveURL(/\/admin\/login$/);await expect(page.getByRole('heading',{name:'Bienvenido de nuevo.'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`test-results/login-${info.project.name}.png`,fullPage:true});
+});
+test('plantilla → acceso → aprobación → generación mock real → descarga única → reactivación',async({browser},info)=>{
+ const userContext=await browser.newContext({viewport:info.project.use.viewport,isMobile:info.project.use.isMobile,hasTouch:info.project.use.hasTouch,acceptDownloads:true}),adminContext=await browser.newContext({viewport:info.project.use.viewport,isMobile:info.project.use.isMobile,hasTouch:info.project.use.hasTouch});const page=await userContext.newPage(),admin=await adminContext.newPage();
+ const name=`Fan-${info.project.name}-${Date.now().toString().slice(-5)}`;
+ await admin.goto('http://127.0.0.1:3000/admin/login');await admin.getByRole('button',{name:'Entrar a la demo'}).click();await expect(admin).toHaveURL('http://127.0.0.1:3000/admin');
+ await navigate(admin,'Artistas y plantillas');await admin.locator('.admin-artist').filter({has:admin.getByRole('heading',{name:'Jungkook',exact:true})}).getByRole('button',{name:'Gestionar fotos'}).click();
+ await admin.getByLabel('Subir plantillas de Jungkook').setInputFiles({name:`Escenario-${name}.webp`,mimeType:'image/webp',buffer:template});await expect(admin.getByRole('heading',{name:`Escenario-${name}`,exact:true})).toBeVisible();
+ await admin.locator('.template-card').filter({has:admin.getByRole('heading',{name:`Escenario-${name}`,exact:true})}).getByRole('button',{name:'Configurar posición'}).click();await checkViewport(admin);await admin.screenshot({path:`test-results/placement-${info.project.name}.png`,fullPage:true});await admin.getByLabel('Posición horizontal').fill('0.4');await admin.getByRole('button',{name:'Guardar posición'}).click();await expect(admin.getByRole('dialog')).toHaveCount(0);
+ await page.goto('http://127.0.0.1:3000');await page.getByLabel('¿Cómo te llamas?').fill(name);await page.getByRole('button',{name:'Solicitar mi acceso'}).click();await expect(page.getByText('Esperando aprobación',{exact:true})).toBeVisible();await page.reload();await expect(page.getByText('Esperando aprobación',{exact:true})).toBeVisible();
+ await navigate(admin,'Solicitudes');await admin.getByRole('button',{name:'Actualizar',exact:true}).click();await admin.getByLabel(`Seleccionar a ${name}`).check();await admin.getByRole('button',{name:'Aprobar seleccionados'}).click();
+ await expect(page.getByRole('button',{name:/Jungkook TU ARTISTA/})).toBeVisible();await page.getByRole('button',{name:/Jungkook TU ARTISTA/}).click();await page.getByRole('button',{name:'Continuar con Jungkook'}).click();await checkViewport(page);await page.getByRole('button',{name:'Confirmar artista'}).click();
+ await expect(page.getByText('Tu mejor versión, sin filtros')).toBeVisible();await page.reload();await expect(page.getByText('Tu mejor versión, sin filtros')).toBeVisible();
+ await checkViewport(page);await page.getByLabel('Elegir foto personal').setInputFiles({name:'selfie.png',mimeType:'image/png',buffer:selfie});await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Crear mi momento'}).click();await expect(page.getByRole('button',{name:'Descargar mi foto'})).toBeVisible({timeout:30000});await expect(page.getByText('IMAGEN DE PRUEBA · MOCK')).toBeVisible();await checkViewport(page);
+ const state=await page.evaluate(async()=>{const r=await fetch('/api/bts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'state'})});return r.json();});expect(state.job.provider).toBe('mock');
+ await page.getByRole('button',{name:'Descargar mi foto'}).click();const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar ahora'}).click();await downloading;await expect(page.getByText('Experiencia finalizada',{exact:true})).toBeVisible();
+ const second=await page.evaluate(async id=>(await fetch('/api/bts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'download',session_id:id})})).status,state.session.id);expect(second).toBeGreaterThanOrEqual(400);
+ await navigate(admin,'Usuarios');await admin.getByRole('button',{name:'Actualizar',exact:true}).click();await admin.getByLabel('Buscar usuario').fill(name);await expect(admin.locator('tbody tr')).toHaveCount(1);await checkViewport(admin);await admin.getByRole('row').filter({has:admin.getByText(name,{exact:true})}).getByRole('button',{name:'Reactivar',exact:true}).click();await admin.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(page.getByRole('button',{name:/Jungkook TU ARTISTA/})).toBeVisible();
+ await navigate(admin,'Generaciones');await expect(admin.getByRole('cell',{name:'mock',exact:true}).first()).toBeVisible();expect(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`test-results/user-${info.project.name}.png`,fullPage:true});await admin.screenshot({path:`test-results/admin-${info.project.name}.png`,fullPage:true});
+ await userContext.close();await adminContext.close();
+});

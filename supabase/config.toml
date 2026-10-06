@@ -1,0 +1,9 @@
+project_id = "bts-photo-experience"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+enable_anonymous_sign_ins = true
+
+[functions.bts-api]
+verify_jwt = true

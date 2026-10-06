@@ -1,0 +1,15 @@
+# Seguridad y límites
+
+Cookies administrativas HttpOnly, SameSite=Strict, Secure en producción; refresh solo en servidor. Cada llamada revalida Auth y membresía protegida. /admin comprueba autorización antes de renderizar. La API comprueba Origin contra Host y rechaza sec-fetch-site cross-site. React escapa textos; no se utiliza HTML arbitrario. El modo demo requiere desarrollo local y se bloquea en Vercel/producción. El proveedor mock también se rechaza fuera de pruebas/desarrollo local, aunque se configure por error con datos reales.
+
+Los cuerpos se cuentan durante lectura del stream: 64 KiB JSON, 4 MiB multipart. Se rechazan bytes, MIME o dimensiones inválidos. El cliente admite JPEG/PNG/WebP hasta 10 MB y 12 MP, normaliza a JPEG de máximo 1600 px; el servidor decodifica de nuevo con Sharp, elimina metadatos y genera miniaturas. Los nombres persistentes son UUID, nunca rutas aportadas por el usuario. Un archivo WebP no se acepta por extensión únicamente.
+
+Los rate limits son atómicos en PostgreSQL: solicitudes generales 180/min por usuario; acceso 5/5 min; cargas 12/min; generación 6/min; descargas/previews 20/min; login 10/10 min por hash de correo y 120/min global. Los anónimos nuevos pueden crear nuevas identidades: para eventos expuestos masivamente considera CAPTCHA de Supabase y límites del hosting; no es protección contra DDoS distribuido.
+
+El resultado completo requiere ownership + READY, transición atómica y streaming. Dos solicitudes concurrentes solo permiten una redención. El navegador siempre puede copiar una imagen que ya recibió o guardar la miniatura: descarga única controla la autorización del servidor, no es DRM. Si la red se corta tras consumir la descarga, el administrador debe reactivar.
+
+Se registran objetos antes de subirlos; la sustitución devuelve la ruta previa bajo bloqueo. La retención incluye sesiones abandonadas y objetos cuyo borrado falló. PHOTO_RETENTION_HOURS=24 es el umbral; el cron diario puede añadir hasta 24 horas antes de borrar y procesa 200 objetos por ejecución. Para volumen superior, ejecuta mantenimiento frecuentemente con worker externo. Si un borrado falla, el registro permanece y se reintenta. Historial y auditoría quedan, fotos personales no. Las plantillas de artistas se retiran del catálogo conservando las referencias de sesiones; su ciclo de vida lo gestiona el organizador.
+
+No se registran secretos ni cuerpos de respuestas OpenAI/Qwen. `.env*` locales están ignorados. `npm run check:repo` revisa secretos literales, rutas e imports; no sustituye revisión de contenido antes de publicar. Si una clave se comparte por chat o se publica, sustitúyela y actualiza los entornos.
+
+La auditoría de seguridad inicial confirmó dos hallazgos medios (cargas sin límite efectivo y sustitución concurrente con objetos huérfanos), corregidos con límites de stream y RPC/registro de objetos. No se encontró una escalada administrativa ni IDOR en las rutas revisadas. Cobertura: código propio, SQL y configuración; no certifica proveedores externos, hardware móvil, infraestructura GPU o resistencia a carga de producción.

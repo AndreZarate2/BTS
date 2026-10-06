@@ -1,0 +1,11 @@
+import {createClient} from '@supabase/supabase-js';
+const {SUPABASE_SECRET_KEY:secret,ADMIN_USER_ID:id}=process.env;
+if(!secret||!id)throw new Error('Configura SUPABASE_SECRET_KEY y ADMIN_USER_ID.');
+const db=createClient('https://pchyfdbbjeouqopudogj.supabase.co',secret,{auth:{persistSession:false,autoRefreshToken:false}});
+const {data:{user},error}=await db.auth.admin.getUserById(id);
+if(error||!user||user.is_anonymous)throw new Error('Se requiere una cuenta real existente.');
+const updated=await db.auth.admin.updateUserById(id,{app_metadata:{...user.app_metadata,bts_admin:true}});
+if(updated.error)throw new Error('No se pudo autorizar la cuenta.');
+const membership=await db.rpc('bts_register_admin',{p_user:id});
+if(membership.error)throw new Error('No se pudo registrar la membresía.');
+console.log('Cuenta existente autorizada. Cierra sesión y vuelve a entrar.');

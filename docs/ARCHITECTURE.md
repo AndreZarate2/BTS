@@ -1,0 +1,15 @@
+# Arquitectura
+
+Las interfaces se organizan por experiencia: `src/usuario` contiene la web pública y `src/administrador` el login, panel y editor de plantillas. `src/app` conserva entradas pequeñas para `/`, `/admin` y `/admin/login`; la autorización se mantiene en las entradas y API del servidor. `src/components`, `src/lib` y `src/types` contienen la parte compartida. Hay un solo package.json y un único despliegue. Véase [organización](ORGANIZACION.md).
+
+Next.js App Router usa exclusivamente `src/app`. React público y administrativo comparten estilos base, componentes, tipos y API del mismo origen. El administrador tiene rutas protegidas en servidor, cookies HttpOnly y validación fresca del usuario y membresía privada. El visitante obtiene identidad anónima en Supabase, conservada por UUID, y usa Bearer para la API. Un nombre no es una identidad.
+
+PostgreSQL conserva profiles, user_access (solicitud/permiso vigente), artists, templates, photo_sessions, generation_jobs, download_events y audit_logs. bts_private contiene admin_members, rate_limits y media_objects. Storage conserva únicamente objetos privados. La API firma miniaturas de catálogo por 120 segundos; los resultados se entregan mediante API autenticada. Ninguna imagen personal se escribe como persistencia en el filesystem de Vercel.
+
+Solicitud → aprobación administrativa → elección transaccional de plantilla → selfie con consentimiento → job persistente → `after()` ejecuta el trabajador → READY → descarga atómica → CONSUMED. El cliente usa Realtime sobre tablas con RLS y polling de recuperación. Cambiar artista, reactivar y generar son operaciones validadas en servidor y RPC. El navegador no decide template_id ni privilegios.
+
+Cada sesión admite un máximo de dos intentos y un solo job activo. Enqueue es idempotente, claim usa bloqueo con SKIP LOCKED y un token de lease; finish comprueba token y estado vigente. Una caída del worker no reenvía automáticamente una solicitud pagada de resultado desconocido. Tras vencer la lease se marca FAILED para reintento explícito. Los reintentos explícitos pueden generar nuevos cargos. El proveedor externo no garantiza idempotencia; la garantía de doble clic procede de la base.
+
+`after()` tiene maxDuration=300. El polling recupera jobs QUEUED. `/api/internal/maintenance` protegido por CRON_SECRET limpia y procesa hasta tres jobs; `npm run worker` permite un supervisor externo. El cron diario es recuperación y retención; para alto volumen configura un worker continuo y observa cola/tiempos. La demo en memoria es exclusivamente local y está aislada de esta persistencia.
+
+Los motores implementan ImageEditingProvider. Auto prueba OpenAI → Qwen → composición local solo ante errores operativos permitidos. El progreso registra stage, motor, fallback, duración y error saneado. No se guardan claves ni respuestas internas del proveedor en logs.
