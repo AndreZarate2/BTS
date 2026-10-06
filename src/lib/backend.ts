@@ -35,7 +35,8 @@ export async function canonicalPhoto(file:File):Promise<File> {
  let bitmap:ImageBitmap;
  try{bitmap=await createImageBitmap(file);}catch{throw new Error('No pudimos leer esa imagen. Prueba con otra foto.');}
  try {
-  if(bitmap.width<128||bitmap.height<128||bitmap.width*bitmap.height>12_000_000)throw new Error(errorMessage('INVALID_IMAGE'));
+  if(bitmap.width<128||bitmap.height<128||bitmap.width*bitmap.height>50_000_000)throw new Error(errorMessage('INVALID_IMAGE'));
+  // Accept standard 12/24/48 MP camera photos; the server only receives the reduced JPEG.
   const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');
   canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
   const context=canvas.getContext('2d');if(!context)throw new Error('No pudimos preparar la foto en este navegador.');
@@ -52,7 +53,7 @@ export function errorMessage(code:string):string {
   PAYLOAD_TOO_LARGE:'La imagen es demasiado grande. Elige una foto más pequeña.',
   INVALID_LOGIN:'No se pudo iniciar sesión. Comprueba tus credenciales y permisos.',
   PROVIDER_NOT_CONFIGURED:'El organizador aún está configurando la generación de fotos. Tu acceso se conserva.',
-  INVALID_IMAGE:'Usa una imagen JPG, PNG o WebP de hasta 10 MB, entre 128 px y 12 megapíxeles.',
+  INVALID_IMAGE:'Usa una imagen JPG, PNG o WebP de hasta 10 MB, entre 128 px y 50 megapíxeles.',
   INVALID_NAME:'Escribe un nombre entre 2 y 60 caracteres.',
   FORBIDDEN:'Esta cuenta no tiene permisos de administrador.',
   ACCESS_REQUIRED:'Tu acceso todavía no está activo. Espera la aprobación del organizador.',

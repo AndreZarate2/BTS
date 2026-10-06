@@ -1,6 +1,7 @@
 // Real local HTTP handlers + mock image provider. No intercepted API or external photo traffic.
 import {test,expect,type Page} from '@playwright/test';
 import {readFileSync} from 'node:fs';
+import sharp from 'sharp';
 const selfie=readFileSync(new URL('../fixtures/selfie.png',import.meta.url)),template=readFileSync(new URL('../fixtures/escenario.webp',import.meta.url));
 async function checkViewport(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 async function navigate(page:Page,label:string){const menu=page.getByRole('button',{name:'Abrir menú',exact:true});if(await menu.isVisible())await menu.click();await page.getByRole('button',{name:label,exact:true}).first().click();await expect(page.getByRole('heading',{name:label,exact:true})).toBeVisible();}
@@ -13,6 +14,8 @@ test('rutas públicas y protección /admin sin sesión',async({page},info)=>{
 test('plantilla → acceso → aprobación → generación mock real → descarga única → reactivación',async({browser},info)=>{
  const userContext=await browser.newContext({viewport:info.project.use.viewport,isMobile:info.project.use.isMobile,hasTouch:info.project.use.hasTouch,acceptDownloads:true}),adminContext=await browser.newContext({viewport:info.project.use.viewport,isMobile:info.project.use.isMobile,hasTouch:info.project.use.hasTouch});const page=await userContext.newPage(),admin=await adminContext.newPage();
  const name=`Fan-${info.project.name}-${Date.now().toString().slice(-5)}`;
+ // A common 12 MP phone photo exceeds 12,000,000 pixels and must still upload.
+ const cameraPhoto=await sharp(selfie).resize(4032,3024,{fit:'fill'}).jpeg({quality:90}).toBuffer();
  await admin.goto('http://127.0.0.1:3000/admin/login');await admin.getByRole('button',{name:'Entrar a la demo'}).click();await expect(admin).toHaveURL('http://127.0.0.1:3000/admin');
  await navigate(admin,'Artistas y plantillas');await admin.locator('.admin-artist').filter({has:admin.getByRole('heading',{name:'Jungkook',exact:true})}).getByRole('button',{name:'Gestionar fotos'}).click();
  await admin.getByLabel('Subir plantillas de Jungkook').setInputFiles({name:`Escenario-${name}.webp`,mimeType:'image/webp',buffer:template});await expect(admin.getByRole('heading',{name:`Escenario-${name}`,exact:true})).toBeVisible();
@@ -21,7 +24,7 @@ test('plantilla → acceso → aprobación → generación mock real → descarg
  await navigate(admin,'Solicitudes');await admin.getByRole('button',{name:'Actualizar',exact:true}).click();await admin.getByLabel(`Seleccionar a ${name}`).check();await admin.getByRole('button',{name:'Aprobar seleccionados'}).click();
  await expect(page.getByRole('button',{name:/Jungkook TU ARTISTA/})).toBeVisible();await page.getByRole('button',{name:/Jungkook TU ARTISTA/}).click();await page.getByRole('button',{name:'Continuar con Jungkook'}).click();await checkViewport(page);await page.getByRole('button',{name:'Confirmar artista'}).click();
  await expect(page.getByText('Tu mejor versión, sin filtros')).toBeVisible();await page.reload();await expect(page.getByText('Tu mejor versión, sin filtros')).toBeVisible();
- await checkViewport(page);await page.getByLabel('Elegir foto personal').setInputFiles({name:'selfie.png',mimeType:'image/png',buffer:selfie});await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Crear mi momento'}).click();await expect(page.getByRole('button',{name:'Descargar mi foto'})).toBeVisible({timeout:30000});await expect(page.getByText('IMAGEN DE PRUEBA · MOCK')).toBeVisible();await checkViewport(page);
+ await checkViewport(page);await page.getByLabel('Elegir foto personal').setInputFiles({name:'selfie-camara.jpg',mimeType:'image/jpeg',buffer:cameraPhoto});await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Crear mi momento'}).click();await expect(page.getByRole('button',{name:'Descargar mi foto'})).toBeVisible({timeout:30000});await expect(page.getByText('IMAGEN DE PRUEBA · MOCK')).toBeVisible();await checkViewport(page);
  const state=await page.evaluate(async()=>{const r=await fetch('/api/bts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'state'})});return r.json();});expect(state.job.provider).toBe('mock');
  await page.getByRole('button',{name:'Descargar mi foto'}).click();const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar ahora'}).click();await downloading;await expect(page.getByText('Experiencia finalizada',{exact:true})).toBeVisible();
  const second=await page.evaluate(async id=>(await fetch('/api/bts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'download',session_id:id})})).status,state.session.id);expect(second).toBeGreaterThanOrEqual(400);
