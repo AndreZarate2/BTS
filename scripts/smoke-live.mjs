@@ -48,8 +48,9 @@ try{
  const templates=await call('admin_templates',{artist_id:artistId},undefined,true);templateId=templates.find(item=>item.label===label)?.id;if(!templateId)throw new Error('TEMPLATE_MISSING');record('real_private_template_upload');
  const catalog=await call('artists');if(!catalog.some(item=>item.id===artistId))throw new Error('CATALOG_MISSING');
  await call('choose_artist',{artist_id:artistId});const selected=await call('state');sessionId=selected.session.id;
- const selfie=await readFile('tests/fixtures/selfie.png');await call('upload_selfie',{session_id:sessionId,consent:'true'},{bytes:selfie,name:'selfie.png',type:'image/png'});record('real_selfie_upload');
- await call('generate',{session_id:sessionId});
+ if(!process.env.SMOKE_REFERENCE_PATH)throw new Error('SET_SMOKE_REFERENCE_PATH_TO_A_CONSENTED_SINGLE_PERSON_PHOTO');
+ const selfie=await readFile(process.env.SMOKE_REFERENCE_PATH);await call('upload_selfie',{session_id:sessionId,consent:'true'},{bytes:selfie,name:'selfie.png',type:'image/png'});record('real_selfie_upload');
+ await call('generate',{session_id:sessionId,consent:true,consent_version:'photo-ai-v2'});
  let state;const deadline=Date.now()+120000;
  do{await new Promise(resolve=>setTimeout(resolve,2000));state=await call('state');if(state.job?.status==='failed')throw new Error('JOB_FAILED_'+state.job.error_code);if(state.session?.status==='ready')break;}while(Date.now()<deadline);
  if(state.session.status!=='ready'||state.job.provider==='mock')throw new Error('REAL_GENERATION_NOT_READY');record('real_generation',{provider:state.job.provider,fallback:state.job.fallback_used});

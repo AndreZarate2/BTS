@@ -54,4 +54,4 @@ Estado para utilizar el flujo con visitantes reales:
 3. Resolver el saldo de OpenAI; la última edición real devolvió `credit_balance_exhausted`. No se ha generado todavía una imagen real con OpenAI en las pruebas.
 4. Importar el repositorio AndreZarate2/BTS en Vercel y configurar las variables del hosting para acceso desde Internet.
 
-Qwen necesita un endpoint GPU externo para probarse con imágenes reales. La composición local funciona como alternativa, con calidad distinta a la generación por IA. Los resultados y límites de las pruebas están en `../AUDIT_REPORT.md`.
+Qwen necesita un endpoint GPU externo para probarse con imágenes reales. El modo auto usa edición generativa OpenAI → Gemini → Qwen y nunca composición local. Gemini requiere cuota de análisis e imágenes y consentimiento del visitante. Los resultados y límites de las pruebas están en `../AUDIT_REPORT.md`.

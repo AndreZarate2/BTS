@@ -7,6 +7,7 @@ import {normalizeImage,thumbnail} from './images';
 import {cleanup,processJob,removeMedia} from './jobs';
 import {providerStatus} from '@/lib/providers/factory';
 import {qwenHealth} from '@/lib/providers/remote';
+import {PHOTO_CONSENT_VERSION} from '@/lib/consent';
 import {placementFrom} from '@/types/images';
 import type {Database,Json} from '@/types/database';
 type SessionRow=Database['public']['Tables']['photo_sessions']['Row'];
@@ -71,7 +72,13 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    }catch(error){await removeMedia('user-selfies',path).catch(()=>{});throw error;}
    return json({ok:true});
   }
-  if(action==='generate')return enqueue(actor.id,uuid(body.session_id),schedule);
+  if(action==='generate'){
+   if(body.consent!==true||body.consent_version!==PHOTO_CONSENT_VERSION)throw new ApiError('PHOTO_CONSENT_REQUIRED');
+   const session=await sessionFor(actor.id,uuid(body.session_id));
+   if(!['selfie_uploaded','failed'].includes(session.status))throw new ApiError('INVALID_TRANSITION');
+   checked(await db.from('photo_sessions').update({consent_version:PHOTO_CONSENT_VERSION,consent_at:now()}).eq('id',session.id).eq('user_id',actor.id));
+   return enqueue(actor.id,session.id,schedule);
+  }
   if(action==='preview'||action==='download'||action==='admin_preview'){
    const id=uuid(body.session_id),session=action==='admin_preview'?checked(await db.from('photo_sessions').select('*').eq('id',id).single()):await sessionFor(actor.id,id);
    if(!session.result_path||(!actor.admin&&session.status!=='ready'))throw new ApiError('DOWNLOAD_USED',409);
@@ -88,7 +95,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    const jobs=checked(await db.from('generation_jobs').select('*').order('created_at',{ascending:false}).limit(1000));
    const users=profiles.map(p=>({...p,access:p.user_access,session:p.photo_sessions.sort((a:{created_at:string},b:{created_at:string})=>b.created_at.localeCompare(a.created_at))[0]||null}));
    const providers=providerStatus();
-   return json({users,logs,artists,jobs,providers,provider_configured:providers.openai||providers.qwen||providers.local||providers.mode==='mock'});
+   return json({users,logs,artists,jobs,providers,provider_configured:providers.openai||providers.gemini||providers.qwen||providers.local||providers.mode==='mock'});
   }
   if(action==='admin_transition')return json(checked(await db.rpc('bts_admin_transition',{p_actor:actor.id,p_user:uuid(body.user_id),p_action:String(body.transition)})));
   if(action==='admin_bulk_approve'){

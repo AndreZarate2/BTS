@@ -15,7 +15,10 @@ Variables en **Project → Settings → Environment Variables**:
 | QWEN_BASE_URL / QWEN_IMAGE_MODEL / QWEN_API_KEY | Servidor GPU opcional por entorno |
 | PHOTO_RETENTION_HOURS | 24 por defecto |
 | IMAGE_MAX_RETRIES | 2 intentos máximos por sesión |
-| IMAGE_ENABLE_LOCAL_FALLBACK | true por defecto |
+| GEMINI_API_KEY | Clave privada de Google AI Studio; nunca NEXT_PUBLIC |
+| GEMINI_ANALYSIS_MODEL | gemini-3.8-flash |
+| GEMINI_IMAGE_MODEL | gemini-3.1-flash-image |
+| IMAGE_ENABLE_LOCAL_FALLBACK | false; auto nunca utiliza composición local |
 | IMAGE_PROVIDER_TIMEOUT_MS | 70000 por motor |
 | CRON_SECRET | Secreto aleatorio de 32 caracteres o más |
 | BTS_DEMO_MODE | false; demo aislada no funciona en Vercel |

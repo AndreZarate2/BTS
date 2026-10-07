@@ -9,7 +9,7 @@ export interface Template {placement?:Placement;uses?:number;id:string;artist_id
 export interface Artist {id:string;slug:string;name:string;enabled:boolean;display_order:number;cover?:string;templates?:Template[]}
 export interface AdminUser extends Profile {access:Access;session:PhotoSession|null;photo_sessions:PhotoSession[]}
 export interface Audit {entity_id?:string|null;id:number;actor_user_id:string;action:string;target_user_id:string|null;created_at:string;metadata:Record<string,unknown>}
-export interface Dashboard {jobs?:GenerationJob[];providers?:{mode:string;openai:boolean;qwen:boolean;local:boolean};users:AdminUser[];artists:Artist[];logs:Audit[];provider_configured:boolean}
+export interface Dashboard {jobs?:GenerationJob[];providers?:{mode:string;openai:boolean;gemini?:boolean;analysis?:boolean;qwen:boolean;local:boolean};users:AdminUser[];artists:Artist[];logs:Audit[];provider_configured:boolean}
 export const statusLabel:Record<string,string>={pending:'Pendiente',approved:'Activo',rejected:'Rechazado',blocked:'Bloqueado',consumed:'Finalizado',artist_selected:'Artista elegido',selfie_uploaded:'Foto cargada',queued:'En cola',processing:'Creando foto',ready:'Foto lista',failed:'Requiere atención',cancelled:'Cancelado'};
 export function nextStep(state:UserState):'welcome'|'waiting'|'unavailable'|'artists'|'selfie'|'processing'|'result'|'consumed' {
  if(!state.access) return 'welcome';

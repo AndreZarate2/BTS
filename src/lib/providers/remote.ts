@@ -17,17 +17,18 @@ abstract class RemoteProvider implements ImageEditingProvider {
   body.append('output_format','jpeg');body.append('size','auto');body.append('n','1');
   if(this.name==='openai'){
    body.append('quality',this.config.quality||'high');
-   if(this.config.model.startsWith('gpt-image-1'))body.append('input_fidelity','high');
+   if(['gpt-image-1','gpt-image-1.5'].includes(this.config.model))body.append('input_fidelity','high');
   }else body.append('response_format','b64_json');
   let response:Response;const endpoint=this.endpoint();
-  try{response=await this.request(endpoint,{method:'POST',redirect:'error',headers:{...(this.config.key?{Authorization:`Bearer ${this.config.key}`}:{ }),'Idempotency-Key':input.idempotencyKey},body,signal:AbortSignal.timeout(this.config.timeoutMs||70000)});}
+  const timeout=Math.min(this.config.timeoutMs||70000,(input.deadlineAt||Infinity)-Date.now());if(timeout<=0)throw new ProviderError('PROVIDER_TIMEOUT');
+  try{response=await this.request(endpoint,{method:'POST',redirect:'error',headers:{...(this.config.key?{Authorization:`Bearer ${this.config.key}`}:{ }),'Idempotency-Key':input.idempotencyKey},body,signal:AbortSignal.timeout(Math.ceil(timeout))});}
   catch{throw new ProviderError('PROVIDER_NETWORK',true);}
   if(!response.ok){
    // Authorization, safety and invalid-request errors never fall through to another provider.
    const transient=[408,429,500,502,503,504].includes(response.status);
-   let denied=false;
-   try{const info=new TextDecoder().decode(await boundedBytes(response,16384));denied=/moderation|safety|content_policy|policy_violation/i.test(info);}catch{throw new ProviderError('PROVIDER_UNREADABLE_ERROR');}
-   throw new ProviderError(denied?'PROVIDER_SAFETY':`PROVIDER_HTTP_${response.status}`,transient&&!denied);
+   let denied=false,quota=false;
+   try{const info=new TextDecoder().decode(await boundedBytes(response,16384));denied=/moderation|safety|content_policy|policy_violation/i.test(info);quota=/insufficient_quota|credit_balance_exhausted|billing_hard_limit|billing_not_active/i.test(info);}catch{throw new ProviderError('PROVIDER_UNREADABLE_ERROR');}
+   throw new ProviderError(denied?'PROVIDER_SAFETY':quota?'PROVIDER_QUOTA':`PROVIDER_HTTP_${response.status}`,transient&&!denied);
   }
   let data:{data?:{b64_json?:unknown}[]};
   try{data=JSON.parse(new TextDecoder().decode(await boundedBytes(response,28_000_000)));}catch{throw new ProviderError('PROVIDER_INVALID_OUTPUT');}

@@ -4,7 +4,7 @@ const root=process.cwd(),ignored=new Set(['node_modules','.next','.git','.vercel
 const files=[];async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){if(ignored.has(e.name)||e.name.endsWith('.zip')||e.name.endsWith('.log')||e.name.endsWith('.tsbuildinfo')||(e.name.startsWith('.env')&&!e.name.endsWith('.example')))continue;const f=path.join(dir,e.name);if(e.isDirectory())await walk(f);else files.push(path.relative(root,f).split(path.sep).join('/'));}}await walk(root);
 const exact=new Set(files),lower=new Map(),errors=[];
 for(const f of files){const folded=f.toLowerCase();if(lower.has(folded))errors.push(`Colisión de mayúsculas: ${f}`);lower.set(folded,f);}
-const suspicious=[/sk-(?:proj-)?[A-Za-z0-9_-]{35,}/,/sb_secret_[A-Za-z0-9_-]{15,}/,/postgres(?:ql)?:\/\/[^\s:]+:[^\s@]+@/];
+const suspicious=[/AQ\.[A-Za-z0-9_-]{35,}/,/AIza[A-Za-z0-9_-]{30,}/,/sk-(?:proj-)?[A-Za-z0-9_-]{35,}/,/sb_secret_[A-Za-z0-9_-]{15,}/,/postgres(?:ql)?:\/\/[^\s:]+:[^\s@]+@/];
 for(const f of files){if(!/\.(?:tsx?|m?js|json|sql|md|toml|cmd|yml|example)$/.test(f))continue;const text=await readFile(path.join(root,f),'utf8');
  if(/\u00c3[\u0080-\u00bf]|\u00c2[\u0080-\u00bf]|\u00e2[\u2020\u20ac\u2122]/.test(text))errors.push(`Texto mal codificado en ${f}`);
  if(suspicious.some(pattern=>pattern.test(text)))errors.push(`Posible secreto en ${f}`);

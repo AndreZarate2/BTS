@@ -189,6 +189,7 @@ export type Database = {
           artist_id: string | null
           artist_selected_at: string | null
           attempts: number
+          consent_version: string | null
           consent_at: string | null
           created_at: string
           downloaded_at: string | null
@@ -211,6 +212,7 @@ export type Database = {
           artist_id?: string | null
           artist_selected_at?: string | null
           attempts?: number
+          consent_version?: string | null
           consent_at?: string | null
           created_at?: string
           downloaded_at?: string | null
@@ -233,6 +235,7 @@ export type Database = {
           artist_id?: string | null
           artist_selected_at?: string | null
           attempts?: number
+          consent_version?: string | null
           consent_at?: string | null
           created_at?: string
           downloaded_at?: string | null

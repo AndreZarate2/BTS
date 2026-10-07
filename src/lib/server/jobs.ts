@@ -3,9 +3,10 @@ import {service} from './db';
 import {checked,maybe} from './http';
 import {intEnv} from './config';
 import {normalizeImage} from './images';
-import {createProviderRouter} from '@/lib/providers/factory';
+import {createProviderRouter,createSceneAnalyzer} from '@/lib/providers/factory';
 import {ProviderError} from '@/lib/providers/remote';
 import {photoPrompt} from '@/lib/providers/prompt';
+import {PHOTO_CONSENT_VERSION} from '@/lib/consent';
 import {placementFrom} from '@/types/images';
 import type {Database} from '@/types/database';
 type Claimed={job:Database['public']['Tables']['generation_jobs']['Row'];session:Database['public']['Tables']['photo_sessions']['Row']};
@@ -23,11 +24,17 @@ export async function processJob(id:string){
   const base=checked(await db.storage.from('artist-templates').download(template.storage_path));
   const selfie=checked(await db.storage.from('user-selfies').download(session.selfie_path!));
   const placement=placementFrom(template.placement);
-  const result=await createProviderRouter().edit({baseImage:new Uint8Array(await base.arrayBuffer()),userImage:new Uint8Array(await selfie.arrayBuffer()),placement,prompt:photoPrompt(placement),idempotencyKey:job.id},async provider=>{
+  const baseImage=new Uint8Array(await base.arrayBuffer()),userImage=new Uint8Array(await selfie.arrayBuffer());
+  const allowGemini=session.consent_version===PHOTO_CONSENT_VERSION;
+  const analyzer=createSceneAnalyzer(allowGemini);
+  if(analyzer)maybe(await db.from('generation_jobs').update({stage:'analyzing_scene'}).eq('id',job.id).eq('lock_token',job.lock_token!));
+  const analysis=analyzer?await analyzer.analyze(baseImage,userImage):undefined;
+  const result=await createProviderRouter(allowGemini).edit({baseImage,userImage,placement,prompt:photoPrompt(placement,analysis),idempotencyKey:job.id,deadlineAt:start+230000},async provider=>{
    stage=provider;
    maybe(await db.from('generation_jobs').update({stage:`processing_${provider}`,provider}).eq('id',job.id).eq('lock_token',job.lock_token!).eq('status','processing'));
   });
   const bytes=await normalizeImage(result.bytes,undefined,20*1048576);
+  if(analyzer){maybe(await db.from('generation_jobs').update({stage:'checking_composition'}).eq('id',job.id).eq('lock_token',job.lock_token!));await analyzer.verify(baseImage,userImage,bytes);}
   path=`${job.user_id}/${session.id}/${job.id}.jpg`;
   maybe(await db.rpc('bts_track_media',{p_session:session.id,p_bucket:'generated-images',p_path:path}));
   checked(await db.storage.from('generated-images').upload(path,bytes,{contentType:'image/jpeg'}));
@@ -36,7 +43,7 @@ export async function processJob(id:string){
  }catch(error){
   if(path)await removeMedia('generated-images',path).catch(()=>{});
   const code=error instanceof ProviderError?error.code:'GENERATION_FAILED';
-  checked(await db.rpc('bts_finish_job',{p_job:job.id,p_lock:job.lock_token!,p_path:null,p_provider:stage,p_fallback:stage==='qwen'||stage==='local_composite',p_duration:Date.now()-start,p_error:code}));
+  checked(await db.rpc('bts_finish_job',{p_job:job.id,p_lock:job.lock_token!,p_path:null,p_provider:stage,p_fallback:stage==='qwen'||stage==='gemini',p_duration:Date.now()-start,p_error:code}));
  }
 }
 export async function processQueue(){

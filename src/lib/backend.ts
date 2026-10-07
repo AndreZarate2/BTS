@@ -51,6 +51,7 @@ export function errorMessage(code:string):string {
   SERVER_NOT_CONFIGURED:'El organizador debe completar la configuración del servidor.',
   RATE_LIMITED:'Has realizado varias acciones seguidas. Espera un minuto y vuelve a intentar.',
   PAYLOAD_TOO_LARGE:'La imagen es demasiado grande. Elige una foto más pequeña.',
+  PHOTO_CONSENT_REQUIRED:'Acepta el consentimiento actualizado antes de crear tu foto.',
   INVALID_LOGIN:'No se pudo iniciar sesión. Comprueba tus credenciales y permisos.',
   PROVIDER_NOT_CONFIGURED:'El organizador aún está configurando la generación de fotos. Tu acceso se conserva.',
   INVALID_IMAGE:'Usa una imagen JPG, PNG o WebP de hasta 10 MB, entre 128 px y 50 megapíxeles.',

@@ -1,0 +1,32 @@
+/* Concert identity: the supplied artwork remains intact; motion follows scrolling. */
+.is-welcome{--violet:#f19aa5;--concert-red:#ed334e}
+.is-welcome .ambient-one{background:#9e15313b}.is-welcome .ambient-two{background:#6414262b}
+.concert-edition{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:2px;color:#eee1e4}
+.concert-edition img{width:40px;height:40px;object-fit:cover;border-radius:50%}
+.welcome-grid{align-items:center;column-gap:70px;min-height:710px;padding-bottom:72px}
+.is-welcome .welcome-copy h1{font-size:clamp(44px,5.1vw,76px);line-height:1.03;letter-spacing:-3.8px}
+.is-welcome .welcome-copy h1 span{color:#f19aa5}.is-welcome .intro{color:#b6aeb4}
+.is-welcome .primary{background:#f2e8e8;color:#29151b}.is-welcome .entry-input{border-color:#ffffff29}
+.concert-artwork{position:relative;isolation:isolate;min-width:0;aspect-ratio:1/1.12;background:radial-gradient(ellipse at 50% 48%,#5c172740,transparent 64%),#100e11;border:1px solid #ffffff1c;border-radius:24px;padding:25px;overflow:hidden;--record-turn:-7deg;--record-lift:0px}
+.concert-topline{display:flex;justify-content:space-between;gap:16px;font-size:9px;letter-spacing:2px;color:#e9cdd4;position:relative;z-index:2}
+.record-halo{position:absolute;inset:17% 4%;border:1px solid #ef668e40;border-radius:50%;box-shadow:0 0 0 24px #c2264910,0 0 0 48px #c2264908}
+.concert-record{position:absolute;inset:12% 10% auto;width:80%;transform:translateY(var(--record-lift)) rotate(var(--record-turn));will-change:transform;filter:drop-shadow(0 22px 22px #0008);border-radius:50%;overflow:hidden;aspect-ratio:1}
+.concert-record img{width:100%;height:100%;object-fit:cover;display:block}
+.record-index{position:absolute;top:48%;right:14px;writing-mode:vertical-rl;font-size:9px;letter-spacing:5px;color:#997982}
+.concert-caption{position:absolute;bottom:24px;left:25px;right:25px;display:flex;align-items:end;justify-content:space-between;font-size:10px;letter-spacing:2px;line-height:1.9;color:#bb9ba6}
+.concert-caption strong{color:#fff;font-weight:500}.concert-spark{color:#ef4963;font-size:45px;line-height:1}
+.concert-story{max-width:1180px;margin:0 auto;padding:0 30px 80px;position:relative}
+.story-divider{display:flex;justify-content:space-between;border-block:1px solid #ffffff1b;padding:20px 0;font-size:9px;letter-spacing:3px;color:#c5a4b0}
+.story-heading{padding:88px 0 48px;display:grid;grid-template-columns:1.4fr 1fr;column-gap:70px;align-items:end}
+.story-heading .eyebrow{grid-column:1/-1;margin-bottom:22px}.story-heading h2{font-size:clamp(36px,4.2vw,60px);letter-spacing:-2px;line-height:1.08}.story-heading h2 span{color:#c38d9e}.story-heading>p:last-child{max-width:340px;font-size:15px}
+.story-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.story-card{border:1px solid #ffffff1b;background:linear-gradient(145deg,#e93b5d09,#ffffff02);padding:30px 26px;border-radius:16px;min-height:230px}
+.story-card>div{display:flex;justify-content:space-between;color:#ef869d;margin-bottom:36px}.story-card>div span{font-size:12px;letter-spacing:3px}.story-card h3{font-size:21px;margin-bottom:12px}.story-card p{font-size:13px;color:#a99da4}
+.story-card:nth-child(2){transition-delay:.1s}.story-card:nth-child(3){transition-delay:.2s}
+.story-finale{text-align:center;padding-top:100px}.story-finale>span{font-size:clamp(48px,11vw,134px);font-weight:800;letter-spacing:-.055em;line-height:1;color:#cd3852;display:block}.story-finale p{margin:24px 0;font-size:16px}.story-finale a{border-color:#db6d874d}
+.motion-ready .story-reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}.motion-ready .story-reveal.is-visible{opacity:1;transform:none}
+.placement-mode{display:flex;gap:10px;align-items:flex-start;padding:16px 0;line-height:1.5}.placement-mode input{margin-top:4px;accent-color:var(--violet)}.placement-auto-note{padding:12px 0;font-size:13px}
+@media(max-width:1000px){.welcome-grid{gap:32px}.concert-artwork{max-width:530px;width:100%;justify-self:center}.story-heading{column-gap:30px}}
+@media(max-width:760px){.welcome-grid{min-height:auto;padding-bottom:45px}.concert-edition{font-size:9px;letter-spacing:1px}.concert-edition img{width:32px;height:32px}.story-heading{grid-template-columns:1fr;padding-top:56px;gap:22px}.story-heading .eyebrow{margin:0}.story-heading>p:last-child{max-width:480px}.story-cards{grid-template-columns:1fr}.story-card{min-height:0;padding:24px}.story-card>div{margin-bottom:22px}.concert-story{padding-inline:24px}.story-finale{padding-top:65px}.is-welcome .welcome-copy h1{letter-spacing:-2.5px}.concert-artwork{aspect-ratio:1/1.05}.concert-record{inset:12% 14% auto;width:72%}}
+@media(max-width:380px){.concert-edition span{max-width:66px;line-height:1.6}.concert-story{padding-inline:16px}.concert-topline{font-size:8px;letter-spacing:1px}.concert-artwork{padding:20px}.concert-caption{font-size:8px;letter-spacing:1.4px}.is-welcome .welcome-copy h1{font-size:43px}}
+@media(prefers-reduced-motion:reduce){.concert-record{transform:none!important;will-change:auto}.motion-ready .story-reveal{opacity:1;transform:none;transition:none}.story-card{transition:none}html{scroll-behavior:auto}}

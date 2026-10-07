@@ -1,19 +1,38 @@
-# Motores de imagen
+# Generación y análisis de imágenes
 
 | Modo | Comportamiento |
 | --- | --- |
-| auto | Motores configurados: OpenAI → Qwen → local |
-| openai_only | Solo OpenAI, falla si no está configurado |
-| qwen_only | Solo Qwen |
-| local_only | Solo composición local |
-| mock | Imagen de prueba marcada MOCK, latencia simulada, sin API |
+| auto | OpenAI → Gemini → Qwen ante errores operativos; nunca composición local |
+| openai_only | Solo edición OpenAI |
+| gemini_only | Solo edición Gemini, con consentimiento v2 |
+| qwen_only | Solo el endpoint Qwen del organizador |
+| local_only | Composición clásica explícita; no recrea cuerpo, postura o perspectiva |
+| mock | Pruebas locales; rechazado en producción |
 
-OPENAI_IMAGE_MODEL=gpt-image-2.5-sunburst; OPENAI_IMAGE_QUALITY=high, configurable como xhigh. `/v1/images/edits` recibe dos imágenes: escena y referencia de identidad. La clave vive solo en servidor. El prompt preserva sujetos originales y especifica identidad, perspectiva, luz, sombras, foco, grano y placement. No se promete identidad fotográfica perfecta; el organizador debe revisar resultados reales antes del evento. [Documentación del modelo](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst), [edición](https://developers.openai.com/api/reference/resources/images/methods/edit).
+OpenAI conserva `gpt-image-2.5-sunburst`, calidad high. Recibe la escena y la referencia de la persona. Gemini usa `gemini-3.8-flash` para analizar y revisar, y `gemini-3.1-flash-image` para editar. Las claves se leen únicamente en el servidor. Una clave que puede listar modelos no garantiza cuota para inferencia.
 
-Qwen utiliza QWEN_BASE_URL, QWEN_IMAGE_MODEL=Qwen/Qwen-Image-Edit-2511 y QWEN_API_KEY. Necesita GPU o servicio externo compatible con vLLM-Omni. La URL puede terminar en /v1; se llama /v1/images/edits con campos `image` repetidos y respuesta b64_json. `/v1/models` sirve como comprobación de conectividad desde Configuración del administrador. Ese health check no garantiza memoria GPU ni generación correcta. Usa HTTPS en producción y token privado. No admite credenciales incrustadas, fragmentos o query en la URL. Qwen no se ejecuta dentro de Vercel. [Qwen oficial](https://github.com/QwenLM/Qwen-Image), [API vLLM-Omni](https://docs.vllm.ai/projects/vllm-omni/en/latest/serving/image_edit_api/).
+## Flujo de composición
 
-Timeouts/red y HTTP 408, 429, 500, 502, 503, 504 permiten fallback. 400, 401, 403, rechazo de seguridad o respuesta no interpretable detienen la cadena. No se usan fallbacks para eludir restricciones. No se sigue una URL de resultado ni redirecciones remotas: se valida base64 y la imagen al persistir. IMAGE_PROVIDER_TIMEOUT_MS=70000, máximo 90000 por motor. IMAGE_MAX_RETRIES=2 limita intentos totales por sesión; no reintentos automáticos de la misma solicitud pagada.
+1. El visitante acepta la autorización para OpenAI, Google Gemini y Qwen. Se registra `photo-ai-v2` antes de encolar. Los trabajos antiguos sin esta versión no envían fotos a Google, incluso si los reintenta un administrador.
+2. Gemini analiza las dos imágenes: cantidad de personas, visibilidad del rostro, encuadre, iluminación, posición relativa y proporción de la cabeza respecto a la escena. Se requiere una persona en la foto del visitante.
+3. La edición generativa incorpora a la persona a escala coherente, preservando las personas originales. Una selfie puede requerir recrear cuerpo o adaptar el encuadre. Se permite ampliar moderadamente el escenario cuando no hay espacio. No se usa una posición fija para todas las plantillas.
+4. Gemini revisa la foto generada: persona añadida, artistas conservados, escala, apoyo, iluminación y ausencia de collage. Un resultado que no pasa esta revisión queda fallido y no se entrega ni consume la descarga.
 
-LocalComposite usa Sharp y segmentación clásica por fondo conectado al borde, con suavizado alfa, posición, escala, rotación, sombra, ajuste de brillo/contraste/color y grano. Funciona mejor con selfies sobre fondo liso contrastante. No es un modelo de segmentación semántica ni genera posturas u oclusiones realistas; su calidad es inferior a edición generativa. El resultado se identifica como local_composite y se etiqueta en pantalla. IMAGE_ENABLE_LOCAL_FALLBACK=false lo desactiva.
+El análisis es transitorio: no se guarda un perfil facial, nombres inferidos ni observaciones descriptivas en la base de datos. Las imágenes se envían inline, sin publicar URLs ni crear archivos en Google. Permanecen aplicables las políticas de los proveedores y la retención configurada en el evento.
 
-La prueba `scripts/smoke-openai.mjs` utiliza el adaptador del proyecto y fixtures sintéticos. Solo se ejecuta manualmente y puede generar un cargo. Las pruebas unitarias simulan transporte de OpenAI/Qwen y ejecutan Sharp real para el motor local.
+## Límites y errores
+
+Las comprobaciones de IA son probabilísticas y no garantizan una integración perfecta con cualquier fotografía. Funcionan mejor con un rostro nítido, una sola persona y buena luz; se recomienda medio cuerpo o cuerpo completo. Se necesita probar resultados reales antes del evento.
+
+Errores HTTP 408, 429, 500, 502, 503 y 504 o de red admiten otro proveedor generativo. Errores de seguridad, permisos, solicitudes inválidas o respuestas inválidas detienen el flujo. El saldo agotado se comunica con un código saneado. No se aplican fallbacks para eludir restricciones. Sin cuota, el sistema muestra un error y no fabrica una foto local.
+
+El análisis y la revisión tienen 25 segundos cada uno. El presupuesto conjunto de edición termina a los 230 segundos desde el inicio del trabajo y deja margen para validación y persistencia dentro de Vercel. Máximo 2 intentos por sesión; no hay reintentos pagados ocultos de la misma generación.
+
+`IMAGE_ENABLE_LOCAL_FALLBACK` se conserva en ejemplos antiguos pero ya no permite introducir composición local en auto. `local_only` requiere una selección explícita. No confundir los tests con mock con evidencia de calidad generativa.
+
+## Documentación consultada
+
+- [Edición OpenAI](https://developers.openai.com/api/reference/resources/images/methods/edit) y [composición de imágenes](https://developers.openai.com/api/docs/guides/image-prompting).
+- [Análisis Gemini](https://ai.google.dev/gemini-api/docs/generate-content/image-understanding?hl=en), [JSON estructurado](https://ai.google.dev/gemini-api/docs/generate-content/structured-output) y [generación y edición](https://ai.google.dev/gemini-api/docs/generate-content/image-generation?hl=en).
+
+La prueba real scripts/smoke-live.mjs requiere SMOKE_REFERENCE_PATH apuntando a una foto JPEG o PNG individual autorizada. Los cuadrados de color de las pruebas unitarias no son selfies válidas para el analizador. ACCESS_ONLY=true conserva la prueba de acceso sin generación.
