@@ -32,7 +32,7 @@ export function ConcertStory(){
   <div className="story-cards">{[
    {n:'01',icon:Layers3,title:'Encuentra tu escena',text:'Elige entre los artistas y las plantillas que el organizador prepara para el evento.'},
    {n:'02',icon:Camera,title:'Hazla tuya',text:'Sube una foto individual, nítida y con buena luz. Tu rostro será la referencia para la nueva imagen.'},
-   {n:'03',icon:Sparkles,title:'Guarda el momento',text:'Creamos una composición con IA que adapta la perspectiva, la escala y la iluminación a la escena.'}
+   {n:'03',icon:Sparkles,title:'Guarda el momento',text:'Prepara tu composición, ajusta el encuadre y guarda tu recuerdo junto al artista.'}
   ].map(item=><article className="story-card story-reveal" key={item.n}><div><span>{item.n}</span><item.icon size={22}/></div><h3>{item.title}</h3><p>{item.text}</p></article>)}</div>
   <div className="story-finale story-reveal"><span>ARIRANG</span><p>Hay canciones que se quedan.<br/>Y fotos que te llevan de vuelta.</p><a className="secondary" href="#display-name">Comenzar mi experiencia ↑</a></div>
  </section>;

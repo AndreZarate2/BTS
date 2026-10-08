@@ -1,5 +1,6 @@
 export function generationError(code:string|null|undefined,fallback='No pudimos crear tu foto. Puedes volver a intentarlo.'){
  const messages:Record<string,string>={
+  LOCAL_MONTAGE_REQUIRED:'Selecciona tu foto y prepara el montaje en el editor antes de guardarlo.',
   PHOTO_FACE_TOO_SMALL:'Tu rostro se ve demasiado pequeño. Usa la foto original, acércate a la cámara y evita capturas de pantalla.',
   PHOTO_FACE_BLURRY:'El rostro está borroso o perdió detalle. Sube una foto original más nítida, sin filtros ni ampliaciones.',
   PHOTO_CHECK_UNAVAILABLE:'No pudimos completar la revisión de calidad. No entregaremos un resultado sin revisar. Inténtalo de nuevo.',

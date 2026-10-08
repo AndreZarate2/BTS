@@ -77,3 +77,7 @@ Para verificar el flujo real completo, con datos sintéticos temporales y limpie
 Revisa `.env.local` ignorado, ejecuta `npm run check:repo` y publica usando [GITHUB_AND_VERCEL](docs/GITHUB_AND_VERCEL.md). En Vercel importa el repositorio, elige Next.js, **Root Directory = .**, configura variables y despliega. No publiques .env.local ni .env.setup. El cron incluido requiere CRON_SECRET y una duración de funciones que admita hasta 300 segundos.
 
 Lee [arquitectura](docs/ARCHITECTURE.md), [proveedores](docs/IMAGE_PROVIDERS.md), [seguridad](docs/SECURITY.md), [despliegue](docs/DEPLOYMENT.md) y [auditoría](AUDIT_REPORT.md).
+
+## Montaje propio sin API de IA
+
+El modo `browser_local` conserva la foto y permite ajustar el montaje antes de guardar, sin cuotas de generadores externos. Consulta [MONTAJE_LOCAL.md](docs/MONTAJE_LOCAL.md) para configuración, privacidad y límites.

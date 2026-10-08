@@ -2,14 +2,14 @@ import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest';
 vi.mock('server-only',()=>({}));
 const fixture=vi.hoisted(()=>({
  user:'10000000-0000-4000-8000-000000000001',session:'20000000-0000-4000-8000-000000000002',
- status:'selfie_uploaded',owned:true,updateError:false,updates:[] as unknown[],
+ status:'selfie_uploaded',selfiePath:'original.jpg',owned:true,updateError:false,updates:[] as unknown[],
  rpc:vi.fn(),schedule:vi.fn()
 }));
 vi.mock('@/lib/server/auth',()=>({identity:async()=>({id:fixture.user,admin:false})}));
 vi.mock('@/lib/server/jobs',()=>({processJob:vi.fn(),cleanup:vi.fn(),removeMedia:vi.fn()}));
 vi.mock('@/lib/server/db',()=>({service:()=>({rpc:fixture.rpc,from:(table:string)=>{
  let mutation=false,returning=false;
- const value=()=>({data:table==='user_access'?{status:'approved'}:!fixture.owned?null:mutation?(returning?{id:fixture.session}:null):{id:fixture.session,user_id:fixture.user,status:fixture.status},error:mutation&&fixture.updateError?{message:'database error'}:null});
+ const value=()=>({data:table==='user_access'?{status:'approved'}:!fixture.owned?null:mutation?(returning?{id:fixture.session}:null):{id:fixture.session,user_id:fixture.user,status:fixture.status,selfie_path:fixture.selfiePath},error:mutation&&fixture.updateError?{message:'database error'}:null});
  const chain={
   select:vi.fn(()=>{if(mutation)returning=true;return chain;}),
   update:vi.fn((data:unknown)=>{mutation=true;fixture.updates.push(data);return chain;}),
@@ -23,7 +23,7 @@ import {PHOTO_CONSENT_VERSION,HUGGINGFACE_CONSENT_VERSION} from '@/lib/consent';
 
 beforeEach(()=>{
  vi.stubEnv('BTS_DEMO_MODE','false');vi.stubEnv('IMAGE_PROVIDER_MODE','qwen_only');vi.stubEnv('QWEN_BASE_URL','https://gpu.example.test');
- fixture.status='selfie_uploaded';fixture.owned=true;fixture.updateError=false;fixture.updates=[];fixture.schedule.mockReset();
+ fixture.status='selfie_uploaded';fixture.selfiePath='original.jpg';fixture.owned=true;fixture.updateError=false;fixture.updates=[];fixture.schedule.mockReset();
  fixture.rpc.mockReset().mockImplementation(async(name:string)=>({data:name==='bts_rate_limit'?true:{created:true,job:{id:'job-fixture',status:'queued'}},error:null}));
 });
 afterEach(()=>vi.unstubAllEnvs());
@@ -55,3 +55,6 @@ describe('generación a través del handler real, sin la demo',()=>{
   expect((await generate({consent_version:HUGGINGFACE_CONSENT_VERSION})).status).toBe(202);expect(fixture.updates[0]).toMatchObject({consent_version:HUGGINGFACE_CONSENT_VERSION});
  });
 });
+
+it('no presenta una selfie antigua como montaje ni consume un intento',async()=>{vi.stubEnv('IMAGE_PROVIDER_MODE','browser_local');const response=await generate({consent_version:'photo-browser-local-v1'});expect(response.status).toBe(400);expect(await response.json()).toEqual({error:'LOCAL_MONTAGE_REQUIRED'});expect(fixture.updates).toHaveLength(0);expect(fixture.schedule).not.toHaveBeenCalled();});
+it('encola un montaje preparado con consentimiento local',async()=>{vi.stubEnv('IMAGE_PROVIDER_MODE','browser_local');fixture.selfiePath='user/session/local-fixture.jpg';const response=await generate({consent_version:'photo-browser-local-v1'});expect(response.status).toBe(202);expect(fixture.updates[0]).toMatchObject({consent_version:'photo-browser-local-v1'});});

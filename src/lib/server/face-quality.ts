@@ -77,3 +77,5 @@ export async function verifyPortrait(reference:Uint8Array,result:Uint8Array){
  const matched=output[distances.indexOf(Math.min(...distances))];
  assertResultDetail(matched.box.width,matched.box.height,await faceFocus(result,matched));
 }
+
+export async function sceneFaceBoxes(bytes:Uint8Array){return (await detect(bytes,true)).map(face=>face.box);}

@@ -25,7 +25,7 @@ export async function rawApi(action:string,values:Record<string,unknown>={},file
  if(!config.demo&&!action.startsWith('admin_')){
   const {data:{session}}=await supabase().auth.getSession();if(!session)throw new Error('Tu sesión ha caducado. Vuelve a entrar.');headers.Authorization=`Bearer ${session.access_token}`;
  }
- if(file){const form=new FormData();form.append('action',action);form.append('file',await canonicalPhoto(file));Object.entries(values).forEach(([key,value])=>form.append(key,String(value)));body=form;}
+ if(file){const form=new FormData();form.append('action',action);form.append('file',action==='upload_local'?file:await canonicalPhoto(file));Object.entries(values).forEach(([key,value])=>form.append(key,String(value)));body=form;}
  else{headers['Content-Type']='application/json';body=JSON.stringify({action,...values});}
  const response=await fetch('/api/bts',{method:'POST',headers,body,cache:'no-store'});
  if(!response.ok){let code='';try{code=(await response.json()).error;}catch{}throw new Error(errorMessage(code));}return response;

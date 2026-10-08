@@ -4,7 +4,7 @@ import {service} from './db';
 import {isDemo,intEnv} from './config';
 import {ApiError,checked,maybe,errorResponse,json,readBody,sameOrigin,uuid} from './http';
 import {normalizeImage,thumbnail,previewImage} from './images';
-import {inspectPortrait} from './face-quality';
+import {inspectPortrait,sceneFaceBoxes} from './face-quality';
 import {ProviderError} from '@/lib/providers/remote';
 import {cleanup,processJob,removeMedia} from './jobs';
 import {providerStatus,providerMode,assertProviderConfigured} from '@/lib/providers/factory';
@@ -41,7 +41,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
   const body=await readBody(request),action=String(body.action||'');
   if(action.startsWith('admin_')&&!actor.admin)throw new ApiError('FORBIDDEN',403);
   const db=service();
-  if(['upload_selfie','admin_upload_template'].includes(action))await rateLimit(`uploads:${actor.id}`,12,60);
+  if(['upload_selfie','upload_local','admin_upload_template'].includes(action))await rateLimit(`uploads:${actor.id}`,12,60);
   if(['generate','admin_retry'].includes(action))await rateLimit(`generation:${actor.id}`,6,60);
   if(action==='request_access'){
    const name=String(body.name||'').trim();if(name.length<2||name.length>60)throw new ApiError('INVALID_NAME');
@@ -63,11 +63,23 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    return json(await Promise.all(artists.filter(a=>a.templates.length>0).map(async a=>({...a,templates:undefined,cover:await signedThumbnail(a.templates[0].thumbnail_path)}))));
   }
   if(action==='choose_artist')return json(checked(await db.rpc('bts_choose_artist',{p_user:actor.id,p_artist:uuid(body.artist_id)})));
-  if(action==='upload_selfie'){
+  if(action==='local_scene'){
+   if(providerMode()!=='browser_local')throw new ApiError('INVALID_TRANSITION');
+   const session=await sessionFor(actor.id,uuid(body.session_id));
+   if(!session.template_id||!['artist_selected','selfie_uploaded','failed'].includes(session.status)||session.purged_at)throw new ApiError('INVALID_TRANSITION');
+   const template=checked(await db.from('templates').select('storage_path,placement').eq('id',session.template_id).single());
+   const image=checked(await db.storage.from('artist-templates').download(template.storage_path));
+   const bytes=new Uint8Array(await image.arrayBuffer());const faces=await sceneFaceBoxes(bytes).catch(()=>[]);
+   return new Response(bytes,{headers:{'X-Photo-Faces':JSON.stringify(faces),'Content-Type':'image/jpeg','Cache-Control':'private, no-store','X-Photo-Placement':JSON.stringify(placementFrom(template.placement)).replace(/[^\x20-\x7E]/g,'')}});
+  }
+  if(action==='upload_selfie'||action==='upload_local'){
+   const local=action==='upload_local';
+   if(local!== (providerMode()==='browser_local'))throw new ApiError('LOCAL_MONTAGE_REQUIRED');
+   if(local&&body.consent_version!==consentVersion('browser_local'))throw new ApiError('PHOTO_CONSENT_REQUIRED');
    const id=uuid(body.session_id),session=await sessionFor(actor.id,id);
    if(!['artist_selected','selfie_uploaded','failed'].includes(session.status)||session.attempts>=2||body.consent!=='true')throw new ApiError('INVALID_TRANSITION');
    if(!(body.file instanceof File))throw new ApiError('INVALID_IMAGE');
-   const bytes=await normalizeImage(new Uint8Array(await body.file.arrayBuffer()),body.file.type),path=`${actor.id}/${id}/${crypto.randomUUID()}.jpg`;
+   const bytes=await normalizeImage(new Uint8Array(await body.file.arrayBuffer()),body.file.type),path=`${actor.id}/${id}/${local?'local-':''}${crypto.randomUUID()}.jpg`;
    if(providerMode()==='qwen_free')try{await inspectPortrait(bytes);}catch(error){throw new ApiError(error instanceof ProviderError?error.code:'PHOTO_CHECK_UNAVAILABLE',422);}
    maybe(await db.rpc('bts_track_media',{p_session:id,p_bucket:'user-selfies',p_path:path}));
    try{
@@ -82,6 +94,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    if(body.consent!==true||body.consent_version!==version)throw new ApiError('PHOTO_CONSENT_REQUIRED');
    const session=await sessionFor(actor.id,uuid(body.session_id));
    if(!['selfie_uploaded','failed'].includes(session.status))throw new ApiError('INVALID_TRANSITION');
+   if(providerMode()==='browser_local'&&!session.selfie_path?.split('/').pop()?.startsWith('local-'))throw new ApiError('LOCAL_MONTAGE_REQUIRED');
    assertProviderConfigured();
    // Supabase mutations return data:null unless rows are explicitly requested.
    checked(await db.from('photo_sessions').update({consent_version:version,consent_at:now()}).eq('id',session.id).eq('user_id',actor.id).select('id').single());
