@@ -36,7 +36,7 @@ npm run dev
 
 `npm run dev` y `npm run build` / `npm run start` usan autenticación, base de datos, almacenamiento y proveedores reales. La configuración normal es `BTS_DEMO_MODE=false` e `IMAGE_PROVIDER_MODE=auto`. No existe entrada de demostración en producción. El proveedor `mock` se rechaza en producción y Vercel.
 
-Las fotos de artistas se cargan desde el administrador. La web pública muestra únicamente artistas activos con plantillas activas. Para una edición generativa se necesita saldo/cuota en OpenAI o Gemini, o un endpoint Qwen. Gemini analiza las fotos y revisa la composición con consentimiento v2. El modo automático nunca entrega un recorte local como resultado. Consulta [los proveedores y sus requisitos](docs/IMAGE_PROVIDERS.md).
+Las fotos de artistas se cargan desde el administrador. La web pública muestra únicamente artistas activos con plantillas activas. Para una edición generativa se necesita saldo/cuota en OpenAI o Gemini, o un endpoint Qwen. Gemini analiza las fotos y revisa la composición con consentimiento v2. El modo automático nunca entrega un recorte local como resultado. Consulta [los proveedores y sus requisitos](docs/IMAGE_PROVIDERS.md). También existe el modo `qwen_free`, que conecta Qwen-Image-Edit-2511 al Space comunitario acelerado de LPX55 con una cuenta gratuita de Hugging Face, cuota diaria compartida y consentimiento específico. Lee [Qwen gratuito](docs/QWEN_GRATUITO.md) antes de activarlo.
 
 ## Pruebas locales aisladas para desarrollo
 

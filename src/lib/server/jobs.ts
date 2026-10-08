@@ -3,10 +3,11 @@ import {service} from './db';
 import {checked,maybe} from './http';
 import {intEnv} from './config';
 import {normalizeImage} from './images';
-import {createProviderRouter,createSceneAnalyzer} from '@/lib/providers/factory';
+import {createProviderRouter,createSceneAnalyzer,providerMode} from '@/lib/providers/factory';
 import {ProviderError} from '@/lib/providers/remote';
 import {photoPrompt} from '@/lib/providers/prompt';
-import {PHOTO_CONSENT_VERSION} from '@/lib/consent';
+import {qwenScene,qwenPhotoPrompt} from '@/lib/providers/qwen-composition';
+import {PHOTO_CONSENT_VERSION,HUGGINGFACE_CONSENT_VERSION,consentAllowsMode} from '@/lib/consent';
 import {placementFrom} from '@/types/images';
 import type {Database} from '@/types/database';
 type Claimed={job:Database['public']['Tables']['generation_jobs']['Row'];session:Database['public']['Tables']['photo_sessions']['Row']};
@@ -20,6 +21,7 @@ export async function processJob(id:string){
  if(!claimed)return;
  const {job,session}=claimed;let path:string|null=null;let stage='starting';const start=Date.now();
  try{
+  if(!consentAllowsMode(session.consent_version,providerMode()))throw new ProviderError('PHOTO_CONSENT_REQUIRED');
   const template=checked(await db.from('templates').select('storage_path,placement').eq('id',session.template_id!).single());
   const base=checked(await db.storage.from('artist-templates').download(template.storage_path));
   const selfie=checked(await db.storage.from('user-selfies').download(session.selfie_path!));
@@ -29,7 +31,9 @@ export async function processJob(id:string){
   const analyzer=createSceneAnalyzer(allowGemini);
   if(analyzer)maybe(await db.from('generation_jobs').update({stage:'analyzing_scene'}).eq('id',job.id).eq('lock_token',job.lock_token!));
   const analysis=analyzer?await analyzer.analyze(baseImage,userImage):undefined;
-  const result=await createProviderRouter(allowGemini).edit({baseImage,userImage,placement,prompt:photoPrompt(placement,analysis),idempotencyKey:job.id,deadlineAt:start+230000},async provider=>{
+  const freeQwen=providerMode()==='qwen_free';
+  const editScene=freeQwen?await qwenScene(baseImage):baseImage;
+  const result=await createProviderRouter(allowGemini,session.consent_version===HUGGINGFACE_CONSENT_VERSION).edit({baseImage:editScene,userImage,placement,prompt:freeQwen?qwenPhotoPrompt(placement):photoPrompt(placement,analysis),idempotencyKey:job.id,deadlineAt:start+230000},async provider=>{
    stage=provider;
    maybe(await db.from('generation_jobs').update({stage:`processing_${provider}`,provider}).eq('id',job.id).eq('lock_token',job.lock_token!).eq('status','processing'));
   });

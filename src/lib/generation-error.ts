@@ -1,5 +1,12 @@
 export function generationError(code:string|null|undefined,fallback='No pudimos crear tu foto. Puedes volver a intentarlo.'){
  const messages:Record<string,string>={
+  PHOTO_CONSENT_REQUIRED:'Hace falta aceptar el consentimiento del proveedor actual antes de generar. Vuelve a la selección de foto o pide al organizador que reactive tu acceso.',
+  HF_AUTH_REQUIRED:'Falta conectar la cuenta gratuita de Hugging Face del organizador. Tu foto y tu acceso se conservan.',
+  HF_FREE_ACCOUNT_REQUIRED:'El modo gratuito requiere una cuenta personal gratuita de Hugging Face. El organizador debe revisar la conexión.',
+  QWEN_FREE_QUOTA:'Se agotó la cuota gratuita de Qwen. Espera a que Hugging Face la renueve o pide ayuda al organizador. Tu descarga sigue disponible.',
+  QWEN_FREE_BUSY:'La GPU gratuita está ocupada. Inténtalo más tarde; tu descarga no se ha utilizado.',
+  QWEN_FREE_UNAVAILABLE:'Hugging Face no pudo completar la generación gratuita. Puede haber cola o falta de cuota. Inténtalo más tarde.',
+  PROVIDER_TIMEOUT:'La generación no terminó dentro del tiempo disponible. Inténtalo más tarde o contacta al organizador.',
   PHOTO_NEEDS_ONE_PERSON:'Elige una foto donde aparezcas solo tú. Así podemos integrarte correctamente en la escena.',
   PHOTO_FACE_UNCLEAR:'Tu rostro no se ve con suficiente claridad. Sube una foto nítida, de frente y con buena luz.',
   COMPOSITION_REJECTED:'La composición no superó la revisión de calidad. No entregamos ese montaje. Prueba con una foto más clara o pide ayuda al organizador.',

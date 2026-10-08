@@ -1,4 +1,5 @@
 import {createClient} from '@supabase/supabase-js';
+import {generationError} from './generation-error';
 import {validPhoto} from './model';
 let client:ReturnType<typeof createClient>|undefined;
 export function supabase() {
@@ -62,5 +63,5 @@ export function errorMessage(code:string):string {
   OPERATION_FAILED:'No se pudo completar la acción. Actualiza el estado e inténtalo de nuevo.',
   UNAUTHORIZED:'Tu sesión ha caducado. Vuelve a entrar.',
   INVALID_TRANSITION:'El estado cambió. Actualiza para continuar.'
- };return messages[code]||'No pudimos conectar. Revisa tu conexión y vuelve a intentarlo.';
+ };return messages[code]||generationError(code,'No pudimos conectar. Revisa tu conexión y vuelve a intentarlo.');
 }

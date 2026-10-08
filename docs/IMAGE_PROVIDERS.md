@@ -5,13 +5,16 @@
 | auto | OpenAI → Gemini → Qwen ante errores operativos; nunca composición local |
 | openai_only | Solo edición OpenAI |
 | gemini_only | Solo edición Gemini, con consentimiento v2 |
-| qwen_only | Solo el endpoint Qwen del organizador |
+| qwen_only | Solo el endpoint Qwen del organizador, sin análisis Gemini |
+| qwen_free | Space oficial Qwen 2511 en Hugging Face; cuota gratuita compartida, sin proveedores de pago |
 | local_only | Composición clásica explícita; no recrea cuerpo, postura o perspectiva |
 | mock | Pruebas locales; rechazado en producción |
 
 OpenAI conserva `gpt-image-2.5-sunburst`, calidad high. Recibe la escena y la referencia de la persona. Gemini usa `gemini-3.8-flash` para analizar y revisar, y `gemini-3.1-flash-image` para editar. Las claves se leen únicamente en el servidor. Una clave que puede listar modelos no garantiza cuota para inferencia.
 
-## Flujo de composición
+El modo `qwen_free` utiliza consentimiento específico para un Space público. Revisa [Qwen gratuito, privacidad y límites](QWEN_GRATUITO.md). En `qwen_only` y `qwen_free`, Qwen interpreta las dos referencias y no se realiza una revisión independiente con Gemini.
+
+## Flujo de composición (modos con Gemini habilitado)
 
 1. El visitante acepta la autorización para OpenAI, Google Gemini y Qwen. Se registra `photo-ai-v2` antes de encolar. Los trabajos antiguos sin esta versión no envían fotos a Google, incluso si los reintenta un administrador.
 2. Gemini analiza las dos imágenes: cantidad de personas, visibilidad del rostro, encuadre, iluminación, posición relativa y proporción de la cabeza respecto a la escena. Se requiere una persona en la foto del visitante.

@@ -5,9 +5,10 @@ import {isDemo,intEnv} from './config';
 import {ApiError,checked,maybe,errorResponse,json,readBody,sameOrigin,uuid} from './http';
 import {normalizeImage,thumbnail} from './images';
 import {cleanup,processJob,removeMedia} from './jobs';
-import {providerStatus} from '@/lib/providers/factory';
+import {providerStatus,providerMode,assertProviderConfigured} from '@/lib/providers/factory';
+import {huggingFaceHealth} from '@/lib/providers/huggingface';
 import {qwenHealth} from '@/lib/providers/remote';
-import {PHOTO_CONSENT_VERSION} from '@/lib/consent';
+import {consentVersion,consentAllowsMode} from '@/lib/consent';
 import {placementFrom} from '@/types/images';
 import type {Database,Json} from '@/types/database';
 type SessionRow=Database['public']['Tables']['photo_sessions']['Row'];
@@ -24,6 +25,7 @@ async function sessionFor(user:string,id:string){
 }
 async function signedThumbnail(path:string|null){return path?checked(await service().storage.from('artist-templates').createSignedUrl(path,120)).signedUrl:undefined;}
 async function enqueue(user:string,id:string,schedule:Schedule){
+ assertProviderConfigured();
  const claim=checked(await service().rpc('bts_enqueue_generation',{p_user:user,p_session:id,p_max_attempts:intEnv('IMAGE_MAX_RETRIES',2,1,2)})) as unknown as Enqueued;
  const job=claim.job;if(job?.status==='queued')schedule(()=>processJob(job.id));
  return json({ok:true,job_id:claim.job?.id},202);
@@ -73,10 +75,13 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    return json({ok:true});
   }
   if(action==='generate'){
-   if(body.consent!==true||body.consent_version!==PHOTO_CONSENT_VERSION)throw new ApiError('PHOTO_CONSENT_REQUIRED');
+   const version=consentVersion(providerMode());
+   if(body.consent!==true||body.consent_version!==version)throw new ApiError('PHOTO_CONSENT_REQUIRED');
    const session=await sessionFor(actor.id,uuid(body.session_id));
    if(!['selfie_uploaded','failed'].includes(session.status))throw new ApiError('INVALID_TRANSITION');
-   checked(await db.from('photo_sessions').update({consent_version:PHOTO_CONSENT_VERSION,consent_at:now()}).eq('id',session.id).eq('user_id',actor.id));
+   assertProviderConfigured();
+   // Supabase mutations return data:null unless rows are explicitly requested.
+   checked(await db.from('photo_sessions').update({consent_version:version,consent_at:now()}).eq('id',session.id).eq('user_id',actor.id).select('id').single());
    return enqueue(actor.id,session.id,schedule);
   }
   if(action==='preview'||action==='download'||action==='admin_preview'){
@@ -95,7 +100,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    const jobs=checked(await db.from('generation_jobs').select('*').order('created_at',{ascending:false}).limit(1000));
    const users=profiles.map(p=>({...p,access:p.user_access,session:p.photo_sessions.sort((a:{created_at:string},b:{created_at:string})=>b.created_at.localeCompare(a.created_at))[0]||null}));
    const providers=providerStatus();
-   return json({users,logs,artists,jobs,providers,provider_configured:providers.openai||providers.gemini||providers.qwen||providers.local||providers.mode==='mock'});
+   return json({users,logs,artists,jobs,providers,provider_configured:providers.configured});
   }
   if(action==='admin_transition')return json(checked(await db.rpc('bts_admin_transition',{p_actor:actor.id,p_user:uuid(body.user_id),p_action:String(body.transition)})));
   if(action==='admin_bulk_approve'){
@@ -103,8 +108,9 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    const results=[];for(const id of new Set(body.user_ids.map(uuid))){const result=await db.rpc('bts_admin_transition',{p_actor:actor.id,p_user:id,p_action:'approve'});results.push({id,ok:!result.error});}return json({results});
   }
   if(action==='admin_retry'){
-   const session=checked(await db.from('photo_sessions').select('id,user_id,status').eq('id',uuid(body.session_id)).single());
+   const session=checked(await db.from('photo_sessions').select('id,user_id,status,consent_version').eq('id',uuid(body.session_id)).single());
    if(session.status!=='failed')throw new ApiError('INVALID_TRANSITION');
+   if(!consentAllowsMode(session.consent_version,providerMode()))throw new ApiError('PHOTO_CONSENT_REQUIRED');
    await audit(actor.id,'generation_retry',session.id);return enqueue(session.user_id,session.id,schedule);
   }
   if(action==='admin_templates'){
@@ -136,7 +142,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    maybe(await db.from('templates').update(action==='admin_template_delete'?{active:false,deleted_at:now()}:{active:body.active===true}).eq('id',id).is('deleted_at',null));
    await audit(actor.id,action==='admin_template_delete'?'template_deleted':'template_toggled',id);return json({ok:true});
   }
-  if(action==='admin_health')return json({providers:providerStatus(),qwen:process.env.QWEN_BASE_URL?await qwenHealth(process.env.QWEN_BASE_URL,process.env.QWEN_API_KEY||''):{configured:false,reachable:false}});
+  if(action==='admin_health')return json({providers:providerStatus(),qwen:providerMode()==='qwen_free'?await huggingFaceHealth(process.env.HF_TOKEN||''):process.env.QWEN_BASE_URL?await qwenHealth(process.env.QWEN_BASE_URL,process.env.QWEN_API_KEY||''):{configured:false,reachable:false}});
   if(action==='admin_cleanup'){const result=await cleanup();await audit(actor.id,'images_cleaned',null,result);return json(result);}
   throw new ApiError('UNKNOWN_ACTION',404);
  }catch(error){return errorResponse(error);}
