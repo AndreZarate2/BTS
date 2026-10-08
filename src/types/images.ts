@@ -2,7 +2,7 @@ export type ProviderName='openai'|'gemini'|'qwen'|'local_composite'|'mock';
 export type ProviderMode='auto'|'gemini_only'|'openai_only'|'qwen_only'|'qwen_free'|'local_only'|'mock';
 export type JobStatus='queued'|'processing'|'ready'|'failed'|'cancelled';
 export interface Placement {mode?:'auto'|'manual';x:number;y:number;width:number;height:number;rotation:number;description:string;preferred_crop:'contain'|'cover';}
-export interface ImageEditInput {baseImage:Uint8Array;userImage:Uint8Array;placement:Placement;prompt:string;idempotencyKey:string;deadlineAt?:number;}
+export interface ImageEditInput {baseImage:Uint8Array;userImage:Uint8Array;placement:Placement;prompt:string;idempotencyKey:string;deadlineAt?:number;outputSize?:{width:number;height:number};}
 export interface ImageEditResult {bytes:Uint8Array;provider:ProviderName;fallback:boolean;durationMs:number;}
 export interface ImageEditingProvider {name:ProviderName;edit(input:ImageEditInput):Promise<ImageEditResult>;}
 export const defaultPlacement:Placement={mode:'auto',x:.55,y:.18,width:.4,height:.78,rotation:0,description:'Integrar a la persona al lado de los artistas, sin ocultarlos.',preferred_crop:'contain'};

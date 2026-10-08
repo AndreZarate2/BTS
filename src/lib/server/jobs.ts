@@ -3,10 +3,11 @@ import {service} from './db';
 import {checked,maybe} from './http';
 import {intEnv} from './config';
 import {normalizeImage} from './images';
+import {inspectPortrait,verifyPortrait} from './face-quality';
 import {createProviderRouter,createSceneAnalyzer,providerMode} from '@/lib/providers/factory';
 import {ProviderError} from '@/lib/providers/remote';
 import {photoPrompt} from '@/lib/providers/prompt';
-import {qwenScene,qwenPhotoPrompt} from '@/lib/providers/qwen-composition';
+import {qwenScene,qwenPhotoPrompt,qwenOutputSize} from '@/lib/providers/qwen-composition';
 import {PHOTO_CONSENT_VERSION,HUGGINGFACE_CONSENT_VERSION,consentAllowsMode} from '@/lib/consent';
 import {placementFrom} from '@/types/images';
 import type {Database} from '@/types/database';
@@ -27,17 +28,19 @@ export async function processJob(id:string){
   const selfie=checked(await db.storage.from('user-selfies').download(session.selfie_path!));
   const placement=placementFrom(template.placement);
   const baseImage=new Uint8Array(await base.arrayBuffer()),userImage=new Uint8Array(await selfie.arrayBuffer());
+  const freeQwen=providerMode()==='qwen_free';
+  if(freeQwen)await inspectPortrait(userImage);
   const allowGemini=session.consent_version===PHOTO_CONSENT_VERSION;
   const analyzer=createSceneAnalyzer(allowGemini);
   if(analyzer)maybe(await db.from('generation_jobs').update({stage:'analyzing_scene'}).eq('id',job.id).eq('lock_token',job.lock_token!));
   const analysis=analyzer?await analyzer.analyze(baseImage,userImage):undefined;
-  const freeQwen=providerMode()==='qwen_free';
   const editScene=freeQwen?await qwenScene(baseImage):baseImage;
-  const result=await createProviderRouter(allowGemini,session.consent_version===HUGGINGFACE_CONSENT_VERSION).edit({baseImage:editScene,userImage,placement,prompt:freeQwen?qwenPhotoPrompt(placement):photoPrompt(placement,analysis),idempotencyKey:job.id,deadlineAt:start+230000},async provider=>{
+  const result=await createProviderRouter(allowGemini,session.consent_version===HUGGINGFACE_CONSENT_VERSION).edit({baseImage:editScene,userImage,placement,outputSize:freeQwen?await qwenOutputSize(editScene):undefined,prompt:freeQwen?qwenPhotoPrompt(placement):photoPrompt(placement,analysis),idempotencyKey:job.id,deadlineAt:start+230000},async provider=>{
    stage=provider;
    maybe(await db.from('generation_jobs').update({stage:`processing_${provider}`,provider}).eq('id',job.id).eq('lock_token',job.lock_token!).eq('status','processing'));
   });
   const bytes=await normalizeImage(result.bytes,undefined,20*1048576);
+  if(freeQwen){maybe(await db.from('generation_jobs').update({stage:'checking_face'}).eq('id',job.id).eq('lock_token',job.lock_token!));await verifyPortrait(userImage,bytes);}
   if(analyzer){maybe(await db.from('generation_jobs').update({stage:'checking_composition'}).eq('id',job.id).eq('lock_token',job.lock_token!));await analyzer.verify(baseImage,userImage,bytes);}
   path=`${job.user_id}/${session.id}/${job.id}.jpg`;
   maybe(await db.rpc('bts_track_media',{p_session:session.id,p_bucket:'generated-images',p_path:path}));

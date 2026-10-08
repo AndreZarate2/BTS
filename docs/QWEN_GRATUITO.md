@@ -26,7 +26,7 @@ El modo gratuito no llama a OpenAI, Gemini ni a otro proveedor al fallar. Rechaz
 - ZeroGPU comparte capacidad entre usuarios y aplica una cuota diaria. Al consultar la documentación el 7 de octubre de 2026, una cuenta gratuita incluía 5 minutos de GPU al día; puede cambiar. El Space acelerado solicita GPU xlarge; esa capacidad consume cuota al doble de velocidad. La prueba del Space oficial falló porque solicitaba 360 segundos, por encima del máximo permitido; se eligió la variante acelerada tras obtener una imagen real con la cuenta gratuita. La cuota del organizador se comparte entre todos sus visitantes.
 - Una cola larga, cuota agotada, cambios del Space o una interrupción pueden impedir generar. La aplicación muestra errores específicos y conserva el derecho de descarga. Un fallo después de iniciar generación sí cuenta como intento; el administrador puede reactivar el acceso.
 - El límite total de este adaptador es 210 segundos, dentro del límite de la función Vercel. No hay reintentos automáticos ni cambio a servicios de pago. No se garantiza capacidad para un concierto completo.
-- No hay revisión independiente de calidad con Gemini en este modo. El modelo puede alterar detalles, proporciones o añadir elementos no solicitados pese a las instrucciones; revisa cada imagen antes de compartirla. Un resultado descargado no implica que haya superado una revisión humana.
+- No se usa Gemini. Antes de subir una foto a Hugging Face, se comprueban localmente un único rostro, tamaño mínimo y nitidez. Después de generar se comprueba una correspondencia facial conservadora; se rechazan coincidencias ambiguas y rostros generados demasiado pequeños o borrosos. Los descriptores permanecen solo en memoria durante el trabajo, no se guardan ni se envían a terceros. Estos controles no garantizan identidad exacta ni detectan todos los defectos. Se solicita salida nativa de hasta 1536 píxeles, con JPEG de alta calidad y vista previa de hasta 1536 píxeles. Aumentar la resolución no recupera detalle ausente en una foto pequeña. El modelo puede alterar detalles, proporciones o añadir elementos no solicitados pese a las instrucciones; revisa cada imagen antes de compartirla. Un resultado descargado no implica que haya superado una revisión humana.
 
 ## Privacidad y consentimiento
 
@@ -44,3 +44,7 @@ Para control estricto de privacidad o mayor capacidad, el adaptador `qwen_only` 
 - [API HTTP de Gradio](https://www.gradio.app/guides/querying-gradio-apps-with-curl)
 
 Las pruebas unitarias comprueban el contrato HTTP, dos imágenes en orden, consentimiento, límite de tiempo, errores, rechazo de URLs externas y ausencia de llamadas a proveedores de pago. Las pruebas con transporte simulado no demuestran calidad visual ni cuota disponible: la validación real requiere un token y una generación completada en Hugging Face.
+
+## Análisis local
+
+Se usan las redes de detección, puntos faciales y descriptor de `@vladmandic/face-api` 1.7.15 (MIT) con TensorFlow.js/WASM 4.22.0, incluidas en el servidor. No se ejecutan los modelos de edad, género ni emociones. Los archivos de modelos y WASM se incluyen expresamente en Vercel. La dependencia transitiva argparse se fija en 2.0.1 para evitar sprintf-js en las herramientas de consola de TensorFlow.js. El proyecto FaceAPI está archivado y requiere revisión antes de futuras actualizaciones.

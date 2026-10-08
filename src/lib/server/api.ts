@@ -3,7 +3,9 @@ import {identity} from './auth';
 import {service} from './db';
 import {isDemo,intEnv} from './config';
 import {ApiError,checked,maybe,errorResponse,json,readBody,sameOrigin,uuid} from './http';
-import {normalizeImage,thumbnail} from './images';
+import {normalizeImage,thumbnail,previewImage} from './images';
+import {inspectPortrait} from './face-quality';
+import {ProviderError} from '@/lib/providers/remote';
 import {cleanup,processJob,removeMedia} from './jobs';
 import {providerStatus,providerMode,assertProviderConfigured} from '@/lib/providers/factory';
 import {huggingFaceHealth} from '@/lib/providers/huggingface';
@@ -66,6 +68,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    if(!['artist_selected','selfie_uploaded','failed'].includes(session.status)||session.attempts>=2||body.consent!=='true')throw new ApiError('INVALID_TRANSITION');
    if(!(body.file instanceof File))throw new ApiError('INVALID_IMAGE');
    const bytes=await normalizeImage(new Uint8Array(await body.file.arrayBuffer()),body.file.type),path=`${actor.id}/${id}/${crypto.randomUUID()}.jpg`;
+   if(providerMode()==='qwen_free')try{await inspectPortrait(bytes);}catch(error){throw new ApiError(error instanceof ProviderError?error.code:'PHOTO_CHECK_UNAVAILABLE',422);}
    maybe(await db.rpc('bts_track_media',{p_session:id,p_bucket:'user-selfies',p_path:path}));
    try{
     checked(await db.storage.from('user-selfies').upload(path,bytes,{contentType:'image/jpeg'}));
@@ -89,7 +92,7 @@ export async function handleApi(request:Request,schedule:Schedule):Promise<Respo
    if(!session.result_path||(!actor.admin&&session.status!=='ready'))throw new ApiError('DOWNLOAD_USED',409);
    await rateLimit(`downloads:${actor.id}`,20,60);
    const blob=checked(await db.storage.from('generated-images').download(session.result_path));
-   if(action!=='download')return new Response(new Uint8Array(await thumbnail(new Uint8Array(await blob.arrayBuffer()))),{headers:{'Content-Type':'image/jpeg','Cache-Control':'private, no-store'}});
+   if(action!=='download')return new Response(new Uint8Array(await previewImage(new Uint8Array(await blob.arrayBuffer()))),{headers:{'Content-Type':'image/jpeg','Cache-Control':'private, no-store'}});
    checked(await db.rpc('bts_redeem_download',{p_user:actor.id,p_session:id}));
    return new Response(blob,{headers:{'Content-Type':'image/jpeg','Cache-Control':'private, no-store','Content-Disposition':'attachment; filename="BTS-mi-momento.jpg"'}});
   }

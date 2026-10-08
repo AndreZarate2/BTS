@@ -20,6 +20,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
+    "@tensorflow/tfjs": "4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "4.22.0",
+    "@vladmandic/face-api": "1.7.15",
     "lucide-react": "1.52.0",
     "next": "16.3.8",
     "react": "19.3.0",
@@ -40,5 +43,10 @@
     "typescript": "5.9.3",
     "vitest": "5.0.3"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "@tensorflow/tfjs": {
+      "argparse": "2.0.1"
+    }
+  }
 }

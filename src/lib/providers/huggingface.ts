@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import type {ImageEditingProvider,ImageEditInput,ImageEditResult} from '@/types/images';
 import {boundedBytes} from '@/lib/server/http';
 import {ProviderError} from './remote';
@@ -84,12 +84,18 @@ export class HuggingFaceQwenProvider implements ImageEditingProvider {
    if(!Array.isArray(paths)||paths.length!==2||paths.some(path=>typeof path!=='string'||!/^\/tmp\/gradio\/[a-zA-Z0-9/_\-.]+$/.test(path)||path.includes('..')))throw new ProviderError('PROVIDER_INVALID_OUTPUT');
    const images=paths.map(path=>({image:{path,meta:{_type:'gradio.FileData'}},caption:null}));
    const seed=createHash('sha256').update(input.idempotencyKey).digest().readUInt32BE(0)%2147483647;
-   // Space /infer signature: gallery, prompt, seed, randomize, cfg, steps, height, width, rewrite, count.
-   // The Space derives dimensions from image 1; slider values are ignored without its UI state.
-   // Disable the separate prompt-rewriting service.
-   const submitted=await json(await call(API+'/call/infer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:[images,input.prompt,seed,false,1,4,256,256,false,1]})})) as {event_id?:unknown};
-   if(typeof submitted.event_id!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(submitted.event_id))throw new ProviderError('PROVIDER_INVALID_OUTPUT');
-   const data=await complete(await call(API+'/call/infer/'+submitted.event_id));
+   // Gradio stores the slider override flags per session; without them it silently
+   // ignores dimensions and returns a 1024px image. These endpoints affect only this session.
+   const sessionHash=randomUUID();
+   const invoke=async(name:'lambda'|'lambda_1'|'infer',data:unknown[])=>{
+    const submitted=await json(await call(API+'/call/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,session_hash:sessionHash})})) as {event_id?:unknown};
+    if(typeof submitted.event_id!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(submitted.event_id))throw new ProviderError('PROVIDER_INVALID_OUTPUT');
+    return complete(await call(API+'/call/'+name+'/'+submitted.event_id));
+   };
+   const size=input.outputSize||{width:1536,height:1536};
+   if([size.width,size.height].some(value=>!Number.isInteger(value)||value<256||value>1536||value%16!==0))throw new ProviderError('PROVIDER_INVALID_OUTPUT');
+   await invoke('lambda',[]);await invoke('lambda_1',[]);
+   const data=await invoke('infer',[images,input.prompt,seed,false,1,4,size.height,size.width,false,1]);
    const gallery=Array.isArray(data)?data[0]:null;
    if(!Array.isArray(gallery)||gallery.length!==1)throw new ProviderError('PROVIDER_INVALID_OUTPUT');
    const image=await call(qwenResultUrl((gallery[0] as FileResult)?.image?.url));

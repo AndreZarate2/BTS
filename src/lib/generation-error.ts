@@ -1,5 +1,10 @@
 export function generationError(code:string|null|undefined,fallback='No pudimos crear tu foto. Puedes volver a intentarlo.'){
  const messages:Record<string,string>={
+  PHOTO_FACE_TOO_SMALL:'Tu rostro se ve demasiado pequeño. Usa la foto original, acércate a la cámara y evita capturas de pantalla.',
+  PHOTO_FACE_BLURRY:'El rostro está borroso o perdió detalle. Sube una foto original más nítida, sin filtros ni ampliaciones.',
+  PHOTO_CHECK_UNAVAILABLE:'No pudimos completar la revisión de calidad. No entregaremos un resultado sin revisar. Inténtalo de nuevo.',
+  PHOTO_RESULT_BLURRY:'El rostro generado quedó demasiado pequeño o borroso. No entregaremos este resultado. Prueba una foto original más cercana y nítida.',
+  PHOTO_LIKENESS_REJECTED:'El resultado no conservó suficientemente la referencia del rostro. No lo entregaremos. Prueba otra foto de frente y bien iluminada.',
   PHOTO_CONSENT_REQUIRED:'Hace falta aceptar el consentimiento del proveedor actual antes de generar. Vuelve a la selección de foto o pide al organizador que reactive tu acceso.',
   HF_AUTH_REQUIRED:'Falta conectar la cuenta gratuita de Hugging Face del organizador. Tu foto y tu acceso se conservan.',
   HF_FREE_ACCOUNT_REQUIRED:'El modo gratuito requiere una cuenta personal gratuita de Hugging Face. El organizador debe revisar la conexión.',
