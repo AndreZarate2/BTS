@@ -26,7 +26,7 @@ El modo gratuito no llama a OpenAI, Gemini ni a otro proveedor al fallar. Rechaz
 - ZeroGPU comparte capacidad entre usuarios y aplica una cuota diaria. Al consultar la documentación el 7 de octubre de 2026, una cuenta gratuita incluía 5 minutos de GPU al día; puede cambiar. El Space acelerado solicita GPU xlarge; esa capacidad consume cuota al doble de velocidad. La prueba del Space oficial falló porque solicitaba 360 segundos, por encima del máximo permitido; se eligió la variante acelerada tras obtener una imagen real con la cuenta gratuita. La cuota del organizador se comparte entre todos sus visitantes.
 - Una cola larga, cuota agotada, cambios del Space o una interrupción pueden impedir generar. La aplicación muestra errores específicos y conserva el derecho de descarga. Un fallo después de iniciar generación sí cuenta como intento; el administrador puede reactivar el acceso.
 - El límite total de este adaptador es 210 segundos, dentro del límite de la función Vercel. No hay reintentos automáticos ni cambio a servicios de pago. No se garantiza capacidad para un concierto completo.
-- No hay revisión independiente de calidad con Gemini en este modo. El modelo puede alterar detalles o cometer errores. Un resultado descargado no implica que haya superado una revisión humana.
+- No hay revisión independiente de calidad con Gemini en este modo. El modelo puede alterar detalles, proporciones o añadir elementos no solicitados pese a las instrucciones; revisa cada imagen antes de compartirla. Un resultado descargado no implica que haya superado una revisión humana.
 
 ## Privacidad y consentimiento
 
